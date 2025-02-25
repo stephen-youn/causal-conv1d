@@ -279,7 +279,6 @@ elif not SKIP_CUDA_BUILD and IS_ROCM:
             "nvcc": [
                 "-O3",
                 "-std=c++17",
-                f"--offload-arch={os.getenv('HIP_ARCHITECTURES', 'native')}",
                 "-U__CUDA_NO_HALF_OPERATORS__",
                 "-U__CUDA_NO_HALF_CONVERSIONS__",
                 "-fgpu-flush-denormals-to-zero",
