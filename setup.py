@@ -192,9 +192,15 @@ if not SKIP_CUDA_BUILD and not IS_ROCM:
         if bare_metal_version >= Version("12.8") and "100" in cuda_archs():
             cc_flag.append("-gencode")
             cc_flag.append("arch=compute_100,code=sm_100")
+        if bare_metal_version >= Version("12.8") and "101" in cuda_archs():
+            cc_flag.append("-gencode")
+            cc_flag.append("arch=compute_101,code=sm_101")
         if bare_metal_version >= Version("12.8") and "120" in cuda_archs():
             cc_flag.append("-gencode")
             cc_flag.append("arch=compute_120,code=sm_120")
+        if bare_metal_version >= Version("13.0") and "110" in cuda_archs():
+            cc_flag.append("-gencode")
+            cc_flag.append("arch=compute_110,code=sm_110")
 
     # HACK: The compiler flag -D_GLIBCXX_USE_CXX11_ABI is set to be the same as
     # torch._C._GLIBCXX_USE_CXX11_ABI
@@ -272,10 +278,10 @@ elif not SKIP_CUDA_BUILD and IS_ROCM:
 
 
 def get_package_version() -> str:
-    with open(Path(this_dir) / "flash_attn" / "__init__.py", "r") as f:
+    with open(Path(this_dir) / "causal_conv1d" / "__init__.py", "r") as f:
         version_match = re.search(r"^__version__\s*=\s*(.*)$", f.read(), re.MULTILINE)
     public_version = ast.literal_eval(version_match.group(1))
-    local_version = os.environ.get("FLASH_ATTN_LOCAL_VERSION")
+    local_version = os.environ.get("CAUSAL_CONV1D_LOCAL_VERSION")
     if local_version:
         return f"{public_version}+{local_version}"
     else:
