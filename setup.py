@@ -322,7 +322,7 @@ def get_wheel_url() -> tuple[str, str]:
 class CachedWheelsCommand(_bdist_wheel):
     """
     The CachedWheelsCommand plugs into the default bdist wheel, which is ran by pip when it cannot
-    find an existing wheel (which is currently the case for all cusual conv1d installs). We use
+    find an existing wheel (which is currently the case for all causal conv1d installs). We use
     the environment parameters to detect whether there is already a pre-built version of a compatible
     wheel available and short-circuits the standard full build pipeline.
     """
