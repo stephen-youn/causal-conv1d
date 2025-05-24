@@ -11,6 +11,7 @@ from einops import rearrange
 
 from causal_conv1d.causal_conv1d_interface import causal_conv1d_fn, causal_conv1d_ref
 from causal_conv1d.causal_conv1d_interface import causal_conv1d_update, causal_conv1d_update_ref
+from causal_conv1d.causal_conv1d_triton import causal_conv1d_triton
 from causal_conv1d.causal_conv1d_varlen import causal_conv1d_varlen_states, causal_conv1d_varlen_states_ref
 
 
@@ -349,3 +350,15 @@ def test_causal_conv1d_varlen(dim, seqlen, width, has_bias, silu_activation, ity
     assert torch.allclose(weight.grad, weight_ref.grad, rtol=rtolw, atol=atolw)
     if has_bias:
         assert torch.allclose(bias.grad, bias_ref.grad, rtol=rtolw, atol=atolw)
+
+
+def test_triton_causal_conv1d_parity():
+    device = "cuda"
+    torch.manual_seed(0)
+    batch, dim, seqlen, width = 2, 8, 32, 3
+    x = torch.randn(batch, dim, seqlen, device=device, dtype=torch.float16)
+    weight = torch.randn(dim, width, device=device, dtype=torch.float16)
+    bias = torch.randn(dim, device=device, dtype=torch.float16)
+    out_triton = causal_conv1d_triton(x, weight, bias)
+    out_ref = causal_conv1d_ref(x, weight, bias)
+    assert torch.allclose(out_triton, out_ref, rtol=1e-3, atol=1e-3)
