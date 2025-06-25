@@ -2,5 +2,6 @@
 *.egg-info/
 build/
 **.so
-*.hip
-*_hip.*
+csrc/hip/*.o
+csrc/hip/libcausal_conv1d_hip.so
+csrc/hip/testbench.out
