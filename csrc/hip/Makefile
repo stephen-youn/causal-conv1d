@@ -1,5 +1,10 @@
 HIPCC ?= hipcc
-HIP_FLAGS ?= -O3 -fPIC -std=c++17
+# Use HIP_ARCHITECTURES env var if set, otherwise default to native
+HIP_ARCH ?= $(if $(HIP_ARCHITECTURES),$(HIP_ARCHITECTURES),native)
+# Extra compilation flags matching setup.py defaults
+HIP_FLAGS ?= -O3 -fPIC -std=c++17 --offload-arch=$(HIP_ARCH) \
+-U__CUDA_NO_HALF_OPERATORS__ -U__CUDA_NO_HALF_CONVERSIONS__ \
+-fgpu-flush-denormals-to-zero $(CC_FLAG)
 INCLUDES ?= -I../
 
 SRCS := causal_conv1d_fwd_hip.hip \
