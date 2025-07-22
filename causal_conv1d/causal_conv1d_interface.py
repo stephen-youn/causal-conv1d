@@ -3,7 +3,16 @@
 import torch
 import torch.nn.functional as F
 
-from causal_conv1d.cpp_functions import causal_conv1d_fwd_function, causal_conv1d_bwd_function, causal_conv1d_update_function
+try:
+    from causal_conv1d.cpp_functions import (
+        causal_conv1d_fwd_function,
+        causal_conv1d_bwd_function,
+        causal_conv1d_update_function,
+    )
+except Exception:  # pragma: no cover - optional CUDA extension
+    causal_conv1d_fwd_function = None
+    causal_conv1d_bwd_function = None
+    causal_conv1d_update_function = None
 
 
 class CausalConv1dFn(torch.autograd.Function):

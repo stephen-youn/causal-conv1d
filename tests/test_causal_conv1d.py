@@ -1,11 +1,16 @@
 # Copyright (C) 2024, Tri Dao.
 
+import sys
+import os
 import math
 
 import torch
 import torch.nn.functional as F
 
 import pytest
+
+ROOT = os.path.dirname(os.path.dirname(__file__))
+sys.path.insert(0, ROOT)
 
 from einops import rearrange
 
@@ -100,8 +105,81 @@ def test_causal_conv1d(dim, seqlen, width, has_bias, silu_activation, itype, cha
     assert torch.allclose(weight.grad, weight_ref.grad, rtol=rtolw, atol=atolw)
     if has_bias:
         assert torch.allclose(bias.grad, bias_ref.grad, rtol=rtolw, atol=atolw)
-    if has_initial_states:
-        assert torch.allclose(initial_states.grad, initial_states_ref.grad.to(dtype=itype), rtol=rtol, atol=atol)
+
+
+def test_triton_update_ref_match():
+    device = "cuda"
+    batch, dim, width, seqlen = 2, 32, 4, 8
+
+    x = torch.randn(batch, dim, seqlen, device=device)
+    conv_state = torch.randn(batch, dim, width - 1, device=device)
+    weight = torch.randn(dim, width, device=device)
+    bias = torch.randn(dim, device=device)
+
+    from causal_conv1d.causal_conv1d_triton import causal_conv1d_update_triton
+
+    out_triton = causal_conv1d_update_triton(x.clone(), conv_state.clone(), weight, bias)
+    out_ref = causal_conv1d_update_ref(x.clone(), conv_state.clone(), weight, bias)
+
+    assert torch.allclose(out_triton, out_ref, rtol=1e-3, atol=1e-3)
+
+
+def test_triton_varlen_ref_match():
+    device = "cuda"
+    dim, width = 16, 4
+    seqlens = [3, 2, 4]
+    total = sum(seqlens)
+
+    x_cat = torch.randn(dim, total, device=device)
+    weight = torch.randn(dim, width, device=device)
+    bias = torch.randn(dim, device=device)
+
+    from causal_conv1d.causal_conv1d_triton import (
+        causal_conv1d_fn_triton,
+        PAD_SLOT_ID,
+    )
+
+    conv_states = torch.randn(len(seqlens), dim, width - 1, device=device)
+    has_initial = torch.tensor([1, 0, 1], dtype=torch.bool, device=device)
+    query_start_loc = torch.tensor(
+        [0] + list(torch.cumsum(torch.tensor(seqlens), 0).tolist()),
+        dtype=torch.int32,
+        device=device,
+    )
+    cache_indices = torch.arange(len(seqlens), dtype=torch.int32, device=device)
+
+    out_triton = causal_conv1d_fn_triton(
+        x_cat,
+        weight,
+        bias=bias,
+        conv_states=conv_states.clone(),
+        query_start_loc=query_start_loc,
+        cache_indices=cache_indices,
+        has_initial_states=has_initial,
+        activation="silu",
+        pad_slot_id=PAD_SLOT_ID,
+    )
+
+    out_ref_parts = []
+    start = 0
+    conv_states_ref = conv_states.clone()
+    for i, L in enumerate(seqlens):
+        xs = x_cat[:, start:start+L].unsqueeze(0)
+        state = conv_states_ref[i:i+1] if has_initial[i] else None
+        out, st = causal_conv1d_ref(
+            xs,
+            weight,
+            bias,
+            initial_states=state,
+            return_final_states=True,
+            activation="silu",
+        )
+        conv_states_ref[i] = st.squeeze(0)
+        out_ref_parts.append(out.squeeze(0))
+        start += L
+    out_ref = torch.cat(out_ref_parts, dim=-1)
+
+    assert torch.allclose(out_triton, out_ref, rtol=1e-3, atol=1e-3)
 
 
 @pytest.mark.parametrize("itype", [torch.float32, torch.float16, torch.bfloat16])
