@@ -1,5 +1,10 @@
+import sys
+import os
 import torch
 import pytest
+
+ROOT = os.path.dirname(os.path.dirname(__file__))
+sys.path.insert(0, ROOT)
 
 from causal_conv1d.causal_conv1d_interface import (
     causal_conv1d_update,
